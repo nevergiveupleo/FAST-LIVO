@@ -5,14 +5,14 @@
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
-#include <fast_livo/States.h>
-#include <fast_livo/Pose6D.h>
-#include <sensor_msgs/Imu.h>
+#include <fast_livo/msg/states.hpp>
+#include <fast_livo/msg/pose6_d.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <cv_bridge/cv_bridge.h>
-#include <nav_msgs/Odometry.h>
-#include <tf/transform_broadcaster.h>
-#include <eigen_conversions/eigen_msg.h>
-#include <cv_bridge/cv_bridge.h>
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+// #include <eigen_conversions/eigen_msg.h>
+// #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.h>
 #include <boost/shared_ptr.hpp>
@@ -46,7 +46,7 @@ using namespace Sophus;
 #define STD_VEC_FROM_EIGEN(mat)  vector<decltype(mat)::Scalar> (mat.data(), mat.data() + mat.rows() * mat.cols())
 #define DEBUG_FILE_DIR(name)     (string(string(ROOT_DIR) + "Log/"+ name))
 
-typedef fast_livo::Pose6D Pose6D;
+typedef fast_livo::msg::Pose6D Pose6D;
 typedef pcl::PointXYZINormal PointType;
 typedef pcl::PointXYZRGB PointTypeRGB;
 typedef pcl::PointCloud<PointType> PointCloudXYZI;
@@ -149,7 +149,7 @@ namespace std
 struct MeasureGroup     
 {
     double img_offset_time;
-    deque<sensor_msgs::Imu::ConstPtr> imu;
+    deque<sensor_msgs::msg::Imu::ConstSharedPtr> imu;
     cv::Mat img;
     MeasureGroup()
     {
@@ -177,13 +177,14 @@ struct LidarMeasureGroup
     void debug_show()
     {
         int i=0;
-        ROS_WARN("Lidar selector debug:");
+        std::cerr<<"-------------Lidar selector debug:-------------"<<std::endl;
         std::cout<<"last_update_time:"<<setprecision(20)<<this->last_update_time<<endl;
         std::cout<<"lidar_beg_time:"<<setprecision(20)<<this->lidar_beg_time<<endl;
         for (auto it = this->measures.begin(); it != this->measures.end(); ++it,++i) {
             std::cout<<"In "<<i<<" measures: ";
             for (auto it_meas=it->imu.begin(); it_meas!=it->imu.end();++it_meas) {
-                std::cout<<setprecision(20)<<(*it_meas)->header.stamp.toSec()-this->lidar_beg_time<<" ";
+                double time_in_seconds = (*it_meas)->header.stamp.sec + (*it_meas)->header.stamp.nanosec * 1e-9;
+                std::cout << std::setprecision(20) << time_in_seconds - this->lidar_beg_time << " ";
             }
             std::cout<<"img_time:"<<setprecision(20)<<it->img_offset_time<<endl;
         }
@@ -350,7 +351,8 @@ struct StatesGroup
         this->bias_g  = Zero3d;
         this->bias_a  = Zero3d;
         this->gravity = Zero3d;
-        this->cov     = Matrix<double,DIM_STATE,DIM_STATE>::Identity() * INIT_COV;
+        this->cov     = MD(DIM_STATE,DIM_STATE)::Identity() * INIT_COV;
+        this->cov.block<9,9>(9,9) = MD(9,9)::Identity() * 0.00001;
 	};
 
     StatesGroup(const StatesGroup& b) {
@@ -454,7 +456,6 @@ auto set_pose6d(const double t, const Matrix<T, 3, 1> &a, const Matrix<T, 3, 1> 
         rot_kp.pos[i] = p(i);
         for (int j = 0; j < 3; j++)  rot_kp.rot[i*3+j] = R(i,j);
     }
-    // Map<M3D>(rot_kp.rot, 3,3) = R;
     return move(rot_kp);
 }
 
@@ -498,6 +499,7 @@ bool esti_plane(Matrix<T, 4, 1> &pca_result, const PointVector &point, const T &
 {
     Matrix<T, NUM_MATCH_POINTS, 3> A;
     Matrix<T, NUM_MATCH_POINTS, 1> b;
+    A.setZero();
     b.setOnes();
     b *= -1.0f;
 
@@ -523,21 +525,20 @@ bool esti_plane(Matrix<T, 4, 1> &pca_result, const PointVector &point, const T &
             return false;
         }
     }
-
-    // for (int j = 0; j < NUM_MATCH_POINTS; j++)
-    // {
-    //     if (fabs(normvec(0) * point[j].x + normvec(1) * point[j].y + normvec(2) * point[j].z + 1.0f) > threshold)
-    //     {
-    //         return false;
-    //     }
-    // }
-
-    // T n = normvec.norm();
-    // pca_result(0) = normvec(0) / n;
-    // pca_result(1) = normvec(1) / n;
-    // pca_result(2) = normvec(2) / n;
-    // pca_result(3) = 1.0 / n; 
     return true;
+}
+
+inline double get_time_sec(const builtin_interfaces::msg::Time &time)
+{
+    return rclcpp::Time(time).seconds();
+}
+
+inline rclcpp::Time get_ros_time(double timestamp)
+{
+    int32_t sec = std::floor(timestamp);
+    auto nanosec_d = (timestamp - std::floor(timestamp)) * 1e9;
+    uint32_t nanosec = nanosec_d;
+    return rclcpp::Time(sec, nanosec);
 }
 
 #endif

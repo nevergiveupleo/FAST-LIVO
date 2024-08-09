@@ -20,7 +20,7 @@
 #include <queue>
 #include <boost/noncopyable.hpp>
 #include <boost/thread.hpp>
-#include <common_lib.h>
+// #include <common_lib.h>
 #include <frame.h>
 
 namespace lidar_selection {

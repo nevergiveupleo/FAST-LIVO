@@ -1,11 +1,12 @@
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <livox_ros_driver/CustomMsg.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <livox_ros_driver2/msg/custom_msg.hpp>
+#include <pcl/filters/impl/filter.hpp>
 
 using namespace std;
 
-#define IS_VALID(a)  ((abs(a)>1e8) ? true : false)
+#define IS_VALID(a) ((abs(a) > 1e8) ? true : false)
 
 typedef pcl::PointXYZINormal PointType;
 typedef pcl::PointCloud<PointType> PointCloudXYZI;
@@ -33,8 +34,10 @@ struct orgtype
   }
 };
 
-namespace velodyne_ros {
-  struct EIGEN_ALIGN16 Point {
+namespace velodyne_ros
+{
+  struct EIGEN_ALIGN16 Point
+  {
       PCL_ADD_POINT4D;
       float intensity;
       uint16_t ring;
@@ -42,15 +45,14 @@ namespace velodyne_ros {
   };
 }  // namespace velodyne_ros
 POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_ros::Point,
-    (float, x, x)
-    (float, y, y)
-    (float, z, z)
-    (float, intensity, intensity)
-    (uint16_t, ring, ring)
-)
+    (float, x, x)(float, y, y)(float, z, z)(float, intensity,
+                                            intensity)(uint16_t, ring,
+                                                      ring))
 
-namespace ouster_ros {
-  struct EIGEN_ALIGN16 Point {
+namespace ouster_ros
+{
+  struct EIGEN_ALIGN16 Point 
+  {
       PCL_ADD_POINT4D;
       float intensity;
       uint32_t t;
@@ -99,8 +101,8 @@ class Preprocess
   Preprocess();
   ~Preprocess();
   
-  void process(const livox_ros_driver::CustomMsg::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out);
-  void process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out);
+  void process(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg, PointCloudXYZI::Ptr &pcl_out);
+  void process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, PointCloudXYZI::Ptr &pcl_out);
   void set(bool feat_en, int lid_type, double bld, int pfilt_num);
 
   // sensor_msgs::PointCloud2::ConstPtr pointcloud;
@@ -109,17 +111,16 @@ class Preprocess
   vector<orgtype> typess[128]; //maximum 128 line lidar
   int lidar_type, point_filter_num, N_SCANS;;
   double blind;
-  bool feature_enabled,given_offset_time;
-  ros::Publisher pub_full, pub_surf, pub_corn;
-    
+  bool feature_enabled, given_offset_time;
+  // ros::Publisher pub_full, pub_surf, pub_corn;
 
   private:
-  void avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg);
-  void oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
-  void velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
-  void xt32_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
+  void avia_handler(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg);
+  void oust64_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);
+  void velodyne_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);
+  void xt32_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);
   void give_feature(PointCloudXYZI &pl, vector<orgtype> &types);
-  void pub_func(PointCloudXYZI &pl, const ros::Time &ct);
+  void pub_func(PointCloudXYZI &pl, const rclcpp::Time &ct);
   int  plane_judge(const PointCloudXYZI &pl, vector<orgtype> &types, uint i, uint &i_nex, Eigen::Vector3d &curr_direct);
   bool small_plane(const PointCloudXYZI &pl, vector<orgtype> &types, uint i_cur, uint &i_nex, Eigen::Vector3d &curr_direct);
   bool edge_jump_judge(const PointCloudXYZI &pl, vector<orgtype> &types, uint i, Surround nor_dir);

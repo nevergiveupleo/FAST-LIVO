@@ -19,7 +19,7 @@
 
 #include <frame.h>
 #include <point.h>
-#include <common_lib.h>
+// #include <common_lib.h>
 
 namespace lidar_selection {
 
