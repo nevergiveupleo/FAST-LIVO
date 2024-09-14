@@ -66,8 +66,8 @@ find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread)
 
-list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/ros2_ws/src/Sophus/install/lib")
-set(Sophus_INCLUDE_DIR "$ENV{HOME}/ros2_ws/src/Sophus/install/include")
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/ros2_ws/src/Sophus/install/lib")
+# set(Sophus_INCLUDE_DIR "$ENV{HOME}/ros2_ws/src/Sophus/install/include")
 find_package(Sophus REQUIRED)
 find_package(vikit_ros2 REQUIRED)
 
